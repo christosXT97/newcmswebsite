@@ -1,0 +1,39 @@
+# .gitignore
+
+# Environment files
+.env
+.env.backup
+
+# Data and uploads directories
+/data/*
+/uploads/*
+# Keep the directories, but ignore content
+!data/.gitkeep
+!uploads/.gitkeep
+
+# Temp files
+*.tmp
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Package management
+/vendor/
+/node_modules/
+/composer.lock
+/package-lock.json
+/yarn.lock

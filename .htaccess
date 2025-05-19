@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# Redirect requests for .env file to 404
+RedirectMatch 404 /\.env
+
+# Set custom 404 error page
+ErrorDocument 404 /404.html
