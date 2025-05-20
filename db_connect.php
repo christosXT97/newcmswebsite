@@ -1,9 +1,7 @@
 <?php
-// Database connection file
-
-// Database connection parameters
-$db_host = '194.197.245.5';
-$db_name = 'cms_database';
+// Database connection parameters for school server
+$db_host = 'localhost'; // Most school servers use localhost for MySQL
+$db_name = 'cms_database'; // Your existing database
 $db_user = '23p_3351';
 $db_pass = 'IJ*gNVzjp9zI(oSh';
 
@@ -21,40 +19,26 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Helper function to safely output HTML
-if (!function_exists('h')) {
-    function h($value) {
-        return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
-    }
+// Helper functions
+function h($value) {
+    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-// Helper function for redirects
-if (!function_exists('redirect')) {
-    function redirect($url) {
-        header("Location: $url");
-        exit;
-    }
+function redirect($url) {
+    header("Location: $url");
+    exit;
 }
 
-// Check if user is logged in
-if (!function_exists('is_logged_in')) {
-    function is_logged_in() {
-        return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
-    }
+function is_logged_in() {
+    return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 }
 
-// Set flash message
-if (!function_exists('set_flash_message')) {
-    function set_flash_message($type, $message) {
-        $_SESSION['flash_messages'][$type][] = $message;
-    }
+function set_flash_message($type, $message) {
+    $_SESSION['flash_messages'][$type][] = $message;
 }
 
-// Get flash messages
-if (!function_exists('get_flash_messages')) {
-    function get_flash_messages() {
-        $messages = $_SESSION['flash_messages'] ?? [];
-        unset($_SESSION['flash_messages']);
-        return $messages;
-    }
+function get_flash_messages() {
+    $messages = $_SESSION['flash_messages'] ?? [];
+    unset($_SESSION['flash_messages']);
+    return $messages;
 }

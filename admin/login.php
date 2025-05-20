@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         
         <div class="mt-3 text-center">
-            <small class="text-muted">Default login: admin / your-password</small>
+            <small class="text-muted">Default login: admin / IJ*gNVzjp9zI(oSh</small>
         </div>
     </div>
 </body>
