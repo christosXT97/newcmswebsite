@@ -1,24 +1,34 @@
+# File path: .github/workflows/deploy.yml
+
 name: Deploy to FTP
 on:
   push:
-    branches: [ main, server ]
+    branches: [ main, master ]
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 2
     
     - name: FTP Deploy
-      uses: SamKirkland/FTP-Deploy-Action@4.3.0
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: ./cms/
+        server-dir: ${{ secrets.FTP_SERVER_DIR }}
+        local-dir: ./
+        # Exclude files and directories that shouldn't be deployed
         exclude: |
           **/.git*
           **/.git*/**
           **/node_modules/**
           .env
+          .env.example
           .github/**
           README.md
+          database.sql

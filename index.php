@@ -1,306 +1,255 @@
 <?php
-// index.php - Frontend website with direct connection
+// Include database connection
+require_once('db_connect.php');
 
-// Error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Database configuration
-$db_host = 'localhost';
-$db_name = 'newcmswebsite';
-$db_user = 'root';
-$db_pass = '';
-
-// Site configuration
-$config = [
-    'site_name' => 'My CMS Website',
-    'site_url' => 'http://localhost/newcmswebsite/newcmswebsite',
-    'upload_dir' => 'uploads/',
-    'data_dir' => 'data/'
-];
-
-// Create the PDO connection directly
+// Fetch articles from database
 try {
-    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
-    // Get settings
-    $stmt = $pdo->query("SELECT * FROM settings");
-    $settings = [];
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $stmt = $pdo->query("SELECT * FROM articles WHERE status = 'published' ORDER BY created_at DESC");
+    $articles = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Log error
+    error_log('Error fetching articles: ' . $e->getMessage());
+    $articles = [];
+}
+
+// Fetch featured articles
+$featured_articles = [];
+try {
+    $stmt = $pdo->query("SELECT * FROM articles WHERE status = 'published' AND is_featured = 1 ORDER BY created_at DESC LIMIT 3");
+    $featured_articles = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Silently fail
+}
+
+// Fetch site settings
+$settings = [];
+try {
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+    while ($row = $stmt->fetch()) {
         $settings[$row['setting_key']] = $row['setting_value'];
     }
-    
-    // Get articles
-    $stmt = $pdo->query("SELECT * FROM articles ORDER BY id DESC");
-    $articles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Get navigation links
-    $stmt = $pdo->query("SELECT * FROM links WHERE type='nav' ORDER BY sort_order");
-    $navLinks = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Get social links
-    $stmt = $pdo->query("SELECT * FROM links WHERE type='social' ORDER BY sort_order");
-    $socialLinks = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-} catch (PDOException $e) {
-    $error = "Database error: " . $e->getMessage();
+} catch (Exception $e) {
+    // Silently fail
 }
+
+$site_name = $settings['site_name'] ?? 'My CMS';
+$site_description = $settings['site_description'] ?? 'A modern content management system';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($settings['company_name'] ?? 'My Website') ?></title>
+    <title><?= htmlspecialchars($site_name) ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            margin: 0;
-            padding: 0;
             color: #333;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        header {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            padding: 20px 0;
         }
         
         .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
-        .logo {
-            font-size: 24px;
-            font-weight: bold;
-            border: 1px solid #000;
-            padding: 10px 20px;
-            text-decoration: none;
-            color: #333;
+        .hero {
+            background-color: #f8f9fa;
+            padding: 5rem 0;
+            margin-bottom: 3rem;
         }
         
-        .nav-links {
-            display: flex;
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
         }
         
-        .nav-links a {
-            margin-left: 20px;
-            text-decoration: none;
-            color: #0d6efd;
+        .featured-image {
+            height: 250px;
+            object-fit: cover;
+            border-radius: 8px 8px 0 0;
         }
         
-        .content {
-            padding: 40px 0;
+        .card {
+            border: none;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         
-        .article {
-            margin-bottom: 40px;
-            padding-bottom: 40px;
-            border-bottom: 1px solid #dee2e6;
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
         }
         
-        .article:last-child {
-            border-bottom: none;
-        }
-        
-        .article-header {
-            margin-bottom: 20px;
-        }
-        
-        .article-title {
-            font-size: 28px;
-            margin-bottom: 10px;
-            color: #212529;
-        }
-        
-        .article-meta {
-            color: #6c757d;
-            font-size: 14px;
-        }
-        
-        .article-content {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        
-        .article-text {
-            flex: 1;
-            min-width: 300px;
-        }
-        
-        .article-image {
-            flex: 0 0 300px;
-            height: 200px;
-            background-size: cover;
-            background-position: center;
-            border-radius: 5px;
-        }
-        
-        footer {
+        .footer {
+            margin-top: 4rem;
+            padding: 2rem 0;
             background-color: #f8f9fa;
             border-top: 1px solid #dee2e6;
-            padding: 40px 0;
-            margin-top: 40px;
-        }
-        
-        .footer-content {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 40px;
-        }
-        
-        .footer-info {
-            flex: 2;
-            min-width: 300px;
-        }
-        
-        .company-name {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        
-        .footer-links {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 150px;
-        }
-        
-        .footer-links h3 {
-            margin-top: 0;
-            font-size: 18px;
-        }
-        
-        .footer-links a {
-            margin-bottom: 10px;
-            text-decoration: none;
-            color: #0d6efd;
-        }
-        
-        .copyright {
-            margin-top: 20px;
-            color: #6c757d;
-            font-size: 14px;
-        }
-        
-        @media (max-width: 768px) {
-            .article-content {
-                flex-direction: column;
-            }
-            
-            .article-image {
-                width: 100%;
-                margin-top: 20px;
-            }
-            
-            .footer-content {
-                flex-direction: column;
-            }
         }
     </style>
 </head>
 <body>
-    <?php if (isset($error)): ?>
-        <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px;">
-            <?= $error ?>
-        </div>
-    <?php endif; ?>
-    
-    <header>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container">
-            <div class="navbar">
-                <a href="index.php" class="logo"><?= htmlspecialchars($settings['logo_text'] ?? 'LOGO') ?></a>
-                <div class="nav-links">
-                    <?php if (!empty($navLinks)): ?>
-                        <?php foreach ($navLinks as $link): ?>
-                            <a href="<?= htmlspecialchars($link['url']) ?>"><?= htmlspecialchars($link['text']) ?></a>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <a href="#">Home</a>
-                        <a href="#">About</a>
-                        <a href="#">Blog</a>
-                    <?php endif; ?>
+            <a class="navbar-brand" href="index.php"><?= htmlspecialchars($site_name) ?></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="index.php">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Blog</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Contact</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <h1 class="mb-3"><?= htmlspecialchars($site_name) ?></h1>
+                    <p class="lead mb-4"><?= htmlspecialchars($site_description) ?></p>
+                    <a href="#articles" class="btn btn-primary btn-lg">Read Our Articles</a>
+                </div>
+                <div class="col-lg-6">
+                    <img src="https://via.placeholder.com/600x400" alt="Hero Image" class="img-fluid rounded">
                 </div>
             </div>
         </div>
-    </header>
-    
-    <div class="content">
-        <div class="container">
+    </section>
+
+    <!-- Featured Articles -->
+    <?php if (!empty($featured_articles)): ?>
+        <section class="container mb-5">
+            <h2 class="mb-4">Featured Articles</h2>
+            <div class="row">
+                <?php foreach ($featured_articles as $article): ?>
+                    <?php
+                    // Get image URL
+                    $image_url = !empty($article['image_url']) ? $article['image_url'] : 
+                                (!empty($article['featured_image']) ? $article['featured_image'] : 'https://via.placeholder.com/800x450');
+                    ?>
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <img src="<?= htmlspecialchars($image_url) ?>" class="featured-image" alt="<?= htmlspecialchars($article['title']) ?>">
+                            <div class="card-body">
+                                <h5 class="card-title"><?= htmlspecialchars($article['title']) ?></h5>
+                                <p class="card-text">
+                                    <?php
+                                    if (!empty($article['excerpt'])) {
+                                        echo htmlspecialchars(substr($article['excerpt'], 0, 100)) . '...';
+                                    } elseif (!empty($article['content1'])) {
+                                        echo htmlspecialchars(substr($article['content1'], 0, 100)) . '...';
+                                    } elseif (!empty($article['content'])) {
+                                        echo htmlspecialchars(substr($article['content'], 0, 100)) . '...';
+                                    }
+                                    ?>
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted"><?= date('F j, Y', strtotime($article['created_at'])) ?></small>
+                                    <a href="article.php?slug=<?= htmlspecialchars($article['slug']) ?>" class="btn btn-sm btn-primary">Read More</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
+    <?php endif; ?>
+
+    <!-- All Articles -->
+    <section id="articles" class="container">
+        <h2 class="mb-4">Latest Articles</h2>
+        <div class="row">
             <?php if (empty($articles)): ?>
-                <p>No articles found.</p>
+                <div class="col-12">
+                    <div class="alert alert-info">No articles found.</div>
+                </div>
             <?php else: ?>
                 <?php foreach ($articles as $article): ?>
-                    <div class="article" id="article-<?= $article['id'] ?>">
-                        <div class="article-header">
-                            <h2 class="article-title"><?= htmlspecialchars($article['title']) ?></h2>
-                        </div>
-                        <div class="article-content">
-                            <div class="article-text">
-                                <p><?= nl2br(htmlspecialchars($article['content1'] ?? '')) ?></p>
-                                <?php if (!empty($article['content2'])): ?>
-                                    <p><?= nl2br(htmlspecialchars($article['content2'])) ?></p>
-                                <?php endif; ?>
+                    <?php
+                    // Get image URL
+                    $image_url = !empty($article['image_url']) ? $article['image_url'] : 
+                                (!empty($article['featured_image']) ? $article['featured_image'] : 'https://via.placeholder.com/800x450');
+                    ?>
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <img src="<?= htmlspecialchars($image_url) ?>" class="featured-image" alt="<?= htmlspecialchars($article['title']) ?>">
+                            <div class="card-body">
+                                <h5 class="card-title"><?= htmlspecialchars($article['title']) ?></h5>
+                                <p class="card-text">
+                                    <?php
+                                    if (!empty($article['excerpt'])) {
+                                        echo htmlspecialchars(substr($article['excerpt'], 0, 100)) . '...';
+                                    } elseif (!empty($article['content1'])) {
+                                        echo htmlspecialchars(substr($article['content1'], 0, 100)) . '...';
+                                    } elseif (!empty($article['content'])) {
+                                        echo htmlspecialchars(substr($article['content'], 0, 100)) . '...';
+                                    }
+                                    ?>
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted"><?= date('F j, Y', strtotime($article['created_at'])) ?></small>
+                                    <a href="article.php?slug=<?= htmlspecialchars($article['slug']) ?>" class="btn btn-sm btn-primary">Read More</a>
+                                </div>
                             </div>
-                            
-                            <?php if (!empty($article['image_url'])): ?>
-                                <div class="article-image" style="background-image: url('<?= htmlspecialchars($article['image_url']) ?>')"></div>
-                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
-    </div>
-    
-    <footer>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
         <div class="container">
-            <div class="footer-content">
-                <div class="footer-info">
-                    <div class="company-name"><?= htmlspecialchars($settings['company_name'] ?? 'My Company') ?></div>
-                    <p><?= nl2br(htmlspecialchars($settings['company_desc'] ?? '')) ?></p>
-                    <div class="copyright">© <?= date('Y') ?> <?= htmlspecialchars($settings['company_name'] ?? 'My Company') ?>. All rights reserved.</div>
+            <div class="row">
+                <div class="col-md-6">
+                    <h3><?= htmlspecialchars($site_name) ?></h3>
+                    <p><?= htmlspecialchars($site_description) ?></p>
                 </div>
-                
-                <div class="footer-links">
-                    <h3>Navigation</h3>
-                    <?php if (!empty($navLinks)): ?>
-                        <?php foreach ($navLinks as $link): ?>
-                            <a href="<?= htmlspecialchars($link['url']) ?>"><?= htmlspecialchars($link['text']) ?></a>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <a href="#">Home</a>
-                        <a href="#">About</a>
-                        <a href="#">Blog</a>
-                    <?php endif; ?>
+                <div class="col-md-3">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="index.php">Home</a></li>
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
                 </div>
-                
-                <div class="footer-links">
-                    <h3>Connect</h3>
-                    <?php if (!empty($socialLinks)): ?>
-                        <?php foreach ($socialLinks as $link): ?>
-                            <a href="<?= htmlspecialchars($link['url']) ?>" target="_blank"><?= htmlspecialchars($link['text']) ?></a>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <a href="https://facebook.com" target="_blank">Facebook</a>
-                        <a href="https://twitter.com" target="_blank">Twitter</a>
-                        <a href="https://instagram.com" target="_blank">Instagram</a>
-                    <?php endif; ?>
+                <div class="col-md-3">
+                    <h5>Follow Us</h5>
+                    <div class="d-flex gap-3">
+                        <a href="#" class="text-dark fs-5"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="text-dark fs-5"><i class="bi bi-twitter"></i></a>
+                        <a href="#" class="text-dark fs-5"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="text-dark fs-5"><i class="bi bi-linkedin"></i></a>
+                    </div>
                 </div>
+            </div>
+            <div class="text-center mt-4">
+                <p class="mb-0">&copy; <?= date('Y') ?> <?= htmlspecialchars($site_name) ?>. All rights reserved.</p>
             </div>
         </div>
     </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

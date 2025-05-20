@@ -1,38 +1,43 @@
 <?php
-// config.php - Simplified version
+// Include database connection
+require_once(__DIR__ . '/db_connect.php');
 
 // Error reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Set to 0 for production
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/logs/error.log');
 
-// Database configuration
-$db_host = 'localhost';
-$db_name = 'newcmswebsite';
-$db_user = 'root'; // Change to your actual MySQL username (usually 'root' for local development)
-$db_pass = '';     // Change if your MySQL has a password
+// Define constants
+define('SITE_URL', 'http://194.197.245.5/~23p_3351/newcmswebsite');
+define('ADMIN_URL', SITE_URL . '/admin');
+define('UPLOAD_DIR', __DIR__ . '/uploads/');
+define('UPLOAD_URL', SITE_URL . '/uploads');
 
-// Create the PDO connection
-try {
-    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    die("Database connection failed: " . $e->getMessage());
-}
-
-// Site configuration
-$config = [
-    'site_name' => 'My CMS Website',
-    'site_url' => 'http://localhost/newcmswebsite/newcmswebsite',
-    'upload_dir' => 'uploads/',
-    'data_dir' => 'data/'
+// Create directories if they don't exist
+$directories = [
+    __DIR__ . '/uploads',
+    __DIR__ . '/uploads/articles',
+    __DIR__ . '/uploads/media',
+    __DIR__ . '/logs'
 ];
 
-// Create required directories if they don't exist
-if (!file_exists($config['upload_dir'])) {
-    mkdir($config['upload_dir'], 0755, true);
+foreach ($directories as $dir) {
+    if (!file_exists($dir)) {
+        mkdir($dir, 0755, true);
+    }
 }
 
-if (!file_exists($config['data_dir'])) {
-    mkdir($config['data_dir'], 0755, true);
+// Global settings
+$settings = [];
+try {
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+    if ($stmt) {
+        while ($row = $stmt->fetch()) {
+            $settings[$row['setting_key']] = $row['setting_value'];
+        }
+    }
+} catch (PDOException $e) {
+    // Silently fail for now
+    error_log("Error loading settings: " . $e->getMessage());
 }
-?>

@@ -1,7 +1,29 @@
+# Enable rewrite engine
 RewriteEngine On
 
-# Redirect requests for .env file to 404
-RedirectMatch 404 /\.env
+# Set the base directory
+RewriteBase /~23p_3351/newcmswebsite/
 
-# Set custom 404 error page
-ErrorDocument 404 /404.html
+# Handle front controller pattern
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^article/([^/]+)/?$ article.php?slug=$1 [QSA,L]
+RewriteRule ^category/([^/]+)/?$ index.php?category=$1 [QSA,L]
+RewriteRule ^page/([^/]+)/?$ index.php?page=$1 [QSA,L]
+
+# Set security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Disable directory listings
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "^\.env|\.gitignore|composer\.json|composer\.lock|package\.json|package-lock\.json|README\.md">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

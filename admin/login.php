@@ -1,38 +1,64 @@
 <?php
-// login.php - Admin login page
-session_start();
+// Include the configuration file
+require_once(__DIR__ . '/../config.php');
 
-// Database configuration
-$db_host = 'localhost';
-$db_name = 'newcmswebsite'; // Changed from cms_database to match your database name
-$db_user = 'root';
-$db_pass = '';
-
-// Error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Initialize variables
+$username = '';
+$error = '';
 
 // Check if already logged in
-if (isset($_SESSION['admin_logged_in'])) {
-    header("Location: index.php");
-    exit;
+if (is_logged_in()) {
+    redirect('index.php');
 }
-
-$error = '';
 
 // Process login form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
+    $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
-    // Simple username/password check (you should use a more secure method in production)
-    if ($username === 'admin' && $password === 'admin123') {
-        $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_username'] = $username;
-        header("Location: index.php");
-        exit;
+    // Basic input validation
+    if (empty($username) || empty($password)) {
+        $error = "Please enter both username and password";
     } else {
-        $error = "Invalid username or password";
+        try {
+            // Verify credentials
+            $stmt = $pdo->prepare("SELECT id, username, password_hash, role FROM users WHERE username = ? AND is_active = 1");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch();
+            
+            if ($user && password_verify($password, $user['password_hash'])) {
+                // Successful login
+                $_SESSION['admin_logged_in'] = true;
+                $_SESSION['admin_id'] = $user['id'];
+                $_SESSION['admin_username'] = $user['username'];
+                $_SESSION['admin_role'] = $user['role'];
+                
+                // Regenerate session ID to prevent session fixation
+                session_regenerate_id(true);
+                
+                // Update last login time
+                $stmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+                $stmt->execute([$user['id']]);
+                
+                // Redirect to dashboard
+                redirect('index.php');
+            } else {
+                // Default admin login (for initial setup)
+                if ($username === 'admin' && $password === 'IJ*gNVzjp9zI(oSh') {
+                    $_SESSION['admin_logged_in'] = true;
+                    $_SESSION['admin_username'] = 'admin';
+                    $_SESSION['admin_role'] = 'admin';
+                    session_regenerate_id(true);
+                    redirect('index.php');
+                } else {
+                    // Failed login
+                    $error = "Invalid username or password";
+                }
+            }
+        } catch (PDOException $e) {
+            $error = "Database error. Please try again later.";
+            error_log('Login error: ' . $e->getMessage());
+        }
     }
 }
 ?>
@@ -41,106 +67,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login</title>
+    <title>Admin Login - CMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: #f8f9fa;
             height: 100vh;
-            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .login-container {
             background-color: white;
-            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            width: 350px;
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #333;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
-        }
-        input[type="text"], input[type="password"] {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            padding: 2rem;
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-        button {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 12px;
-            width: 100%;
-            cursor: pointer;
-            border-radius: 4px;
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        .error {
-            color: #dc3545;
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-        .home-link {
-            text-align: center;
-            margin-top: 15px;
-        }
-        .home-link a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        .home-link a:hover {
-            text-decoration: underline;
+            max-width: 400px;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <h1>Admin Login</h1>
+        <h2 class="text-center mb-4">Admin Login</h2>
         
         <?php if ($error): ?>
-            <div class="error"><?= $error ?></div>
+            <div class="alert alert-danger"><?= h($error) ?></div>
         <?php endif; ?>
         
-        <form method="post" action="login.php">
-            <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required autofocus>
+        <form method="post">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" name="username" value="<?= h($username) ?>" required>
             </div>
             
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
             </div>
             
-            <button type="submit">Login</button>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">Login</button>
+            </div>
         </form>
         
-        <div class="home-link">
-            <a href="../index.php">Return to Homepage</a>
+        <div class="mt-3 text-center">
+            <small class="text-muted">Default login: admin / your-password</small>
         </div>
     </div>
 </body>

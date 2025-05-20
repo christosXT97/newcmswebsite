@@ -1,17 +1,21 @@
-# .gitignore
+# File path: .gitignore
 
 # Environment files
 .env
 .env.backup
+.env.local
 
-# Data and uploads directories
-/data/*
+# User uploaded content
+/uploads/
 /uploads/*
-# Keep the directories, but ignore content
-!data/.gitkeep
-!uploads/.gitkeep
+!/uploads/.gitkeep
 
-# Temp files
+# Logs
+/logs/
+/logs/*
+!/logs/.gitkeep
+
+# Temporary files
 *.tmp
 *.swp
 *.swo
@@ -23,17 +27,42 @@ Thumbs.db
 .vscode/
 *.sublime-project
 *.sublime-workspace
+*.komodoproject
+*.komodotools
+.komodotools/
+.phpintel/
 
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Package management
+# Dependency directories
 /vendor/
 /node_modules/
-/composer.lock
-/package-lock.json
-/yarn.lock
+
+# Package manager files
+composer.lock
+package-lock.json
+yarn.lock
+
+# Cache files
+.sass-cache/
+.phpunit.result.cache
+.php_cs.cache
+
+# Database backups
+*.sql
+*.sqlite
+*.db
+
+# Except the database schema
+!database.sql
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Configuration files
+*.env.php
+*.env.*.php
